@@ -52,6 +52,11 @@ function updateFrequenciesFromInput() {
   centerFreq = parseFloat(centerInput.value) || 100; // fallback 100
   minFreq = parseFloat(minInput.value) || 100;
   maxFreq = parseFloat(maxInput.value) || 5000;
+
+    // Immediately update the bandpass filter frequency if available
+  if (bandpass && audioCtx) {
+    bandpass.frequency.setValueAtTime(centerFreq, audioCtx.currentTime);
+  }
 }
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -98,7 +103,7 @@ function updateFrequenciesFromInput() {
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
       const source = audioCtx.createMediaStreamSource(stream);
 
-      const bandpass = audioCtx.createBiquadFilter();
+      bandpass = audioCtx.createBiquadFilter();
       bandpass.type = "bandpass";
       bandpass.frequency.value = centerFreq;
       bandpass.Q.value = 4;
