@@ -1,163 +1,138 @@
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
 <br />
 
 <!--Include Tailwind CSS-->
 <script src="https://cdn.tailwindcss.com"></script>
 <div class="bg-gray-50 p-4 md:p-8">
   <div class="max-w-6xl mx-auto">
-    <h2>🎙️ Noise Removal from Audio</h2>
+    <h2>🎙️ Audio Signal Processing with Real-Time Frequency Spectrums</h2>
     <p>This application uses your microphone, and visualizes the frequency spectrum of the audio signal.</p>
+    <br/>
 
     <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-8">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Center Frequency (Hz):</label>
-          <input
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            id="centerFreq0"
-            type="number"
-            value="1700"
-          />
+          <input class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" id="centerFreq" type="number" value="1700" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Frequency (Hz):</label>
-          <input
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            id="minFreq"
-            type="number"
-            value="100"
-          />
+          <input class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" id="minFreq" type="number" value="100" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Maximum Frequency (Hz):</label>
-          <input
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            id="maxFreq"
-            type="number"
-            value="3400"
-          />
+          <input class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" id="maxFreq" type="number" value="3400" />
         </div>
+                    <button class="w-full md:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" onclick="updateFrequenciesFromInput()">
+                Submit
+            </button>
       </div>
-    </div>
 
+
+    <p>If not working try this <a href="https://www.salimwireless.com/p/external-links.html#link1" target="_blank">link</a>&nbsp;</p>
+    <br/>
     <div class="bg-white rounded-lg shadow-md p-4" id="fftPlot" style="height: 30em;"></div>
+<br/>
+
+    </div>
   </div>
 </div>
 
-<script>
-let centerFreqInput0 = document.getElementById("centerFreq0");
-let minFreqInput = document.getElementById("minFreq");
-let maxFreqInput = document.getElementById("maxFreq");
-let sweepUp = true;
+  <script>
+    
+    let centerFreq = 100;
+    let minFreq = 100;
+    let maxFreq = 5000;
+    let sweepUp = true;
+    
+function updateFrequenciesFromInput() {
+  const centerInput = document.getElementById("centerFreq");
+  const minInput = document.getElementById("minFreq");
+  const maxInput = document.getElementById("maxFreq");
 
-// Initialize swept frequency and bounds from inputs
-let centerFreqInputValue = getValidatedNumber(centerFreqInput0, 1700);
-let minFreqValue = getValidatedNumber(minFreqInput, 100);
-let maxFreqValue = getValidatedNumber(maxFreqInput, 3400);
-
-// Update centerFreqInputValue when user manually changes centerFreq0 input
-centerFreqInput0.addEventListener("input", () => {
-  centerFreqInputValue = getValidatedNumber(centerFreqInput0, centerFreqInputValue);
-});
-
-// Update minFreqValue when user changes minFreq input
-minFreqInput.addEventListener("input", () => {
-  minFreqValue = getValidatedNumber(minFreqInput, minFreqValue);
-});
-
-// Update maxFreqValue when user changes maxFreq input
-maxFreqInput.addEventListener("input", () => {
-  maxFreqValue = getValidatedNumber(maxFreqInput, maxFreqValue);
-});
-
-// Helper to get valid numeric input with fallback
-function getValidatedNumber(inputElement, fallback) {
-  const val = inputElement.valueAsNumber;
-  return isNaN(val) ? fallback : val;
+  centerFreq = parseFloat(centerInput.value) || 100; // fallback 100
+  minFreq = parseFloat(minInput.value) || 100;
+  maxFreq = parseFloat(maxInput.value) || 5000;
 }
 
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const fftSize = 1024;
+    const sampleRate = audioCtx.sampleRate;
 
-  // Naive DFT
-  function computeFFT(signal) {
-    const N = signal.length;
-    const real = new Float32Array(N);
-    const imag = new Float32Array(N);
-    for (let k = 0; k < N; k++) {
-      for (let n = 0; n < N; n++) {
-        const angle = -2 * Math.PI * k * n / N;
-        real[k] += signal[n] * Math.cos(angle);
-        imag[k] += signal[n] * Math.sin(angle);
+
+
+    // Naive DFT
+    function computeFFT(signal) {
+      const N = signal.length;
+      const real = new Float32Array(N);
+      const imag = new Float32Array(N);
+      for (let k = 0; k < N; k++) {
+        for (let n = 0; n < N; n++) {
+          const angle = -2 * Math.PI * k * n / N;
+          real[k] += signal[n] * Math.cos(angle);
+          imag[k] += signal[n] * Math.sin(angle);
+        }
       }
+      const mag = real.map((re, i) => Math.sqrt(re * re + imag[i] * imag[i]));
+      return mag;
     }
-    const mag = real.map((re, i) => Math.sqrt(re * re + imag[i] * imag[i]));
-    return mag;
-  }
 
-  function plotFFT(magnitude) {
-    const freqBins = magnitude.map((_, i) => i * sampleRate / fftSize);
-    const trace = {
-      x: freqBins.slice(0, fftSize / 2),
-      y: magnitude.slice(0, fftSize / 2),
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: 'cyan' },
-    };
-    Plotly.newPlot('fftPlot', [trace], {
-      margin: { t: 30 },
-      xaxis: { title: 'Frequency (Hz)' },
-      yaxis: { title: 'Magnitude' },
-      paper_bgcolor: '#111',
-      plot_bgcolor: '#111',
-      font: { color: 'white' }
+    function plotFFT(magnitude) {
+      const freqBins = magnitude.map((_, i) => i * sampleRate / fftSize);
+      const trace = {
+        x: freqBins.slice(0, fftSize / 2),
+        y: magnitude.slice(0, fftSize / 2),
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: 'cyan' },
+      };
+      Plotly.newPlot('fftPlot', [trace], {
+        margin: { t: 30 },
+        xaxis: { title: 'Frequency (Hz)' },
+        yaxis: { title: 'Magnitude' },
+        paper_bgcolor: '#111',
+        plot_bgcolor: '#111',
+        font: { color: 'white' }
+      });
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const source = audioCtx.createMediaStreamSource(stream);
+
+      const bandpass = audioCtx.createBiquadFilter();
+      bandpass.type = "bandpass";
+      bandpass.frequency.value = centerFreq;
+      bandpass.Q.value = 4;
+
+      // Create ScriptProcessorNode for FFT tap
+      const processor = audioCtx.createScriptProcessor(fftSize, 1, 1);
+
+      // Audio path
+      source.connect(bandpass);
+      bandpass.connect(audioCtx.destination); // output to speakers
+      bandpass.connect(processor);            // tap into filtered signal
+      processor.connect(audioCtx.destination); // needed to keep processor alive
+
+      processor.onaudioprocess = (event) => {
+        const input = event.inputBuffer.getChannelData(0);
+        const fftMag = computeFFT(input);
+        plotFFT(fftMag);
+      };
+
+      // Animate bandpass frequency
+      setInterval(() => {
+        if (sweepUp) {
+          centerFreq += 50;
+          if (centerFreq >= maxFreq) sweepUp = false;
+        } else {
+          centerFreq -= 50;
+          if (centerFreq <= minFreq) sweepUp = true;
+        }
+        bandpass.frequency.setValueAtTime(centerFreq, audioCtx.currentTime);
+      }, 50);
+
+    }).catch(err => {
+      console.error("Microphone error:", err);
+      alert("Microphone access is required.");
     });
-  }
-
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const fftSize = 1024;
-  const sampleRate = audioCtx.sampleRate;
-
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    const source = audioCtx.createMediaStreamSource(stream);
-
-    const bandpass = audioCtx.createBiquadFilter();
-    bandpass.type = "bandpass";
-    bandpass.frequency.value = centerFreqInputValue; // Use swept freq variable
-    bandpass.Q.value = 4;
-
-    const processor = audioCtx.createScriptProcessor(fftSize, 1, 1);
-
-    source.connect(bandpass);
-    bandpass.connect(audioCtx.destination);
-    bandpass.connect(processor);
-    processor.connect(audioCtx.destination);
-
-    processor.onaudioprocess = (event) => {
-      const input = event.inputBuffer.getChannelData(0);
-      const fftMag = computeFFT(input);
-      plotFFT(fftMag);
-    };
-
-    // Animate bandpass frequency without changing centerFreqInput0.value
-    setInterval(() => {
-      let minFreq = getValidatedNumber(minFreqInput, 500);
-      let maxFreq = getValidatedNumber(maxFreqInput, 3000);
-
-      if (sweepUp) {
-        centerFreqInputValue += 50;
-        if (centerFreqInputValue >= maxFreq) sweepUp = false;
-      } else {
-        centerFreqInputValue -= 50;
-        if (centerFreqInputValue <= minFreq) sweepUp = true;
-      }
-
-      // DO NOT update centerFreqInput0.value
-      // Instead, update the bandpass frequency with the swept value
-      bandpass.frequency.setValueAtTime(centerFreqInputValue, audioCtx.currentTime);
-
-    }, 50);
-
-  }).catch(err => {
-    console.error("Microphone error:", err);
-    alert("Microphone access is required.");
-  });
-</script>
+  </script>
